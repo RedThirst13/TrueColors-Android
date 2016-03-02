@@ -3,10 +3,7 @@ package io.vokal.gradle.truecolors
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
-
-import java.nio.file.FileSystems
 
 class TrueColorsPlugin implements Plugin<Project> {
 
@@ -14,25 +11,18 @@ class TrueColorsPlugin implements Plugin<Project> {
         project.extensions.create('truecolors', TrueColorsExtension)
 
         project.afterEvaluate {
-
-            dumpProperties(project.android)
-
             def variants = null
             if (project.android.hasProperty('applicationVariants')) {
                 variants = project.android.applicationVariants
             } else if (project.android.hasProperty('libraryVariants')) {
                 variants = project.android.libraryVariants
             } else {
-                throw new IllegalStateException('Android project must have applicationVariants or libraryVariants!')
+                return
             }
 
             def scalePixels = true
-            if (project.truecolors != null) {
-                if (project.truecolors.hasProperty('useScalePixelDimens'))
-                    scalePixels = project.truecolors.useScalePixelDimens
-                else println "useScalePixelDimens defaultint to true"
-            } else {
-                println "using default TrueColors settings……"
+            if (project.truecolors != null && project.truecolors.hasProperty('useScalePixelDimens')) {
+                scalePixels = project.truecolors.useScalePixelDimens
             }
 
             def root = project.getProjectDir().getAbsolutePath()
@@ -48,7 +38,8 @@ class TrueColorsPlugin implements Plugin<Project> {
                         include "**/*.truecolors"
                     }
                     if (!tcCollection.empty) {
-                        assetsDir = src.assets.srcDirs[0]
+                        if (assetsDir == null)
+                            assetsDir = src.assets.srcDirs[0]
                         if (tcSources == null) {
                             tcSources = tcCollection
                         } else {
@@ -58,9 +49,6 @@ class TrueColorsPlugin implements Plugin<Project> {
                 }
 
                 def count = tcSources == null || tcSources.empty ? 0 : tcSources.files.size()
-                println "[$count] TrueColors ($varNameCap)"
-                if (tcSources != null) dumpProperties(tcSources)
-                println()
 
                 if (count > 0) {
                     String outDir = "$project.buildDir/generated/res/truecolors/$variant.dirName/"
@@ -82,74 +70,6 @@ class TrueColorsPlugin implements Plugin<Project> {
                     variant.sourceSets[variant.sourceSets.size() - 1].res.srcDirs += outDir
                 }
             }
-        }
-    }
-
-    public static String wildcardToRegex(String wildcard) {
-        StringBuffer s = new StringBuffer(wildcard.length())
-        s.append('^')
-        int len = wildcard.length()
-        for (int i = 0; i < len; i++) {
-            char c = wildcard.charAt(i)
-            switch (c) {
-                case '*':
-                    s.append(".*")
-                    break
-                case '?':
-                    s.append(".")
-                    break
-            // escape special regexp-characters
-                case '(': case ')': case '[': case ']': case '$':
-                case '^': case '.': case '{': case '}': case '|':
-                case '\\':
-                    s.append("\\")
-                    s.append(c)
-                    break
-                default:
-                    s.append(c)
-                    break
-            }
-        }
-        s.append('$')
-        return (s.toString())
-    }
-
-    public static void dumpProperties(Object object) {
-        def filtered = ['class', 'active']
-        if (object == null) {
-            print "Object == NULL"
-            return
-        }
-        println "${object.class.canonicalName}: $object"
-        println object.properties
-                .sort { it.key }
-                .collect { it }
-                .findAll { !filtered.contains(it.key) }
-                .collect {
-            def t = "?"
-            if (it.value == null) t = "null"
-            else if (it.value.class == null) t = "primitive"
-            else t = it.value.class.simpleName
-            "$t: $it"
-        }.join('\n')
-        println()
-    }
-
-    static {
-        System.setProperty("java.awt.headless", "true")
-
-        // workaround for an Android Studio issue
-        try {
-            Class.forName(System.getProperty("java.awt.graphicsenv"))
-        } catch (ClassNotFoundException e) {
-            System.err.println("[WARN] java.awt.graphicsenv: " + e)
-            System.setProperty("java.awt.graphicsenv", "sun.awt.CGraphicsEnvironment")
-        }
-        try {
-            Class.forName(System.getProperty("awt.toolkit"))
-        } catch (ClassNotFoundException e) {
-            System.err.println("[WARN] awt.toolkit: " + e)
-            System.setProperty("awt.toolkit", "sun.lwawt.macosx.LWCToolkit")
         }
     }
 }
