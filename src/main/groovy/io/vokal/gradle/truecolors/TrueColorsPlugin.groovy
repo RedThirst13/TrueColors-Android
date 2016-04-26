@@ -30,7 +30,6 @@ class TrueColorsPlugin implements Plugin<Project> {
             variants.all { variant ->
                 def varNameCap = variant.name.capitalize()
 
-                def assetsDir = null
                 FileTree tcSources = null
                 variant.sourceSets.each { src ->
                     def srcPath = "$root/src/$src.name"
@@ -38,8 +37,6 @@ class TrueColorsPlugin implements Plugin<Project> {
                         include "**/*.truecolors"
                     }
                     if (!tcCollection.empty) {
-                        if (assetsDir == null)
-                            assetsDir = src.assets.srcDirs[0]
                         if (tcSources == null) {
                             tcSources = tcCollection
                         } else {
@@ -51,13 +48,15 @@ class TrueColorsPlugin implements Plugin<Project> {
                 def count = tcSources == null || tcSources.empty ? 0 : tcSources.files.size()
 
                 if (count > 0) {
-                    String outDir = "$project.buildDir/generated/res/truecolors/$variant.dirName/"
+                    String resGenDir = "$project.buildDir/generated/res/truecolors/$variant.dirName/"
+                    String fontDir = "$project.buildDir/generated/assets/truecolors/$variant.dirName/"
+
 
                     def trueTaskName = "generate${varNameCap}ResTrueColors"
                     Task trueTask = project.task(trueTaskName, type: TrueColorsTask) {
                         sources = tcSources
-                        outputDir = project.file(outDir)
-                        assetFolder = project.file(assetsDir)
+                        outputDir = project.file(resGenDir)
+                        assetFolder = project.file(fontDir)
                         useScalePixels = scalePixels
                     }
 
@@ -67,7 +66,9 @@ class TrueColorsPlugin implements Plugin<Project> {
 
                     // so, we register dependency directly and add outputs to most specific source set
                     project.tasks["generate${varNameCap}Resources"].dependsOn(trueTaskName)
-                    variant.sourceSets[variant.sourceSets.size() - 1].res.srcDirs += outDir
+                    variant.sourceSets[variant.sourceSets.size() - 1].res.srcDirs += resGenDir
+                    variant.sourceSets[variant.sourceSets.size() - 1].assets.srcDirs += fontDir
+
                 }
             }
         }
